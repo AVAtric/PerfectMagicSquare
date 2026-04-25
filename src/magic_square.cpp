@@ -459,13 +459,14 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
  * Change position of two numbers in a square by a given probability.
  */
 void mutate(std::vector<MagicSquare> &population, double probability) {
-#pragma omp parallel default(none) shared(population, probability)
+    const int popSize = static_cast<int>(population.size());
+#pragma omp parallel default(none) shared(population, probability, popSize)
     {
         thread_local std::mt19937 rng(std::random_device{}());
         thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
 
 #pragma omp for nowait
-        for (size_t i = 0; i < population.size(); ++i) {
+        for (int i = 0; i < popSize; ++i) {
             if (dist(rng) < probability)
                 population[i].swap();
         }
