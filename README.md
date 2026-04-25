@@ -5,7 +5,7 @@ Uses a memetic algorithm (genetic algorithm + steepest-descent local search) wit
 
 ## Build
 
-Requires a C++20 compiler and OpenMP support.
+Requires a C++20 compiler and OpenMP support. No third-party headers — the colored grid is rendered with raw ANSI escape codes.
 
 ```bash
 mkdir build && cd build
@@ -48,11 +48,13 @@ cd build
 ctest --output-on-failure
 ```
 
-Individual test binaries exist for each square size (3-9), plus a visual test and a performance benchmark:
+Two binaries exist per square size (3-9): a correctness test and a live visual test.
 ```bash
-./bin/PerfectMagicSquareTestsThree
-./bin/PerfectMagicSquareTestsPerformance
+./bin/PerfectMagicSquareTestsThree         # correctness, validates 3x3 solution
+./bin/PerfectMagicSquareTestsFiveVisual    # live animated 5x5 run
 ```
+
+The visual tests redraw the current best candidate in place every ~100 ms with per-cell coloring (green = the cell's row/column/diagonal sums are correct, red = at least one is off), plus generation, fitness, mutation rate and stagnation counters. Run them in a real terminal — piping the output strips the terminal-control sequences. Larger sizes (7-9) make the convergence pattern most visible.
 
 ## Algorithm
 
@@ -76,6 +78,7 @@ The solver is a **memetic algorithm** combining a genetic algorithm for global e
 - **O(1) swap evaluation** in local search via delta computation on cached sums (no full fitness recompute).
 - **O(1) value existence check** in crossover using a boolean array instead of O(n*n) linear scan.
 - **No expensive deduplication**: Removed all `std::find()` calls over population vectors (was O(pop * n*n) per call).
+- **Hoisted parent fitness in crossover**: per-row/column fitness values are precomputed once per parent instead of n*n times per pair.
 - **OpenMP parallelization** of crossover, mutation, and local search phases.
 
 ### Benchmark results
@@ -101,15 +104,13 @@ Times vary between runs due to the stochastic nature of the algorithm.
 ├── CMakeLists.txt
 ├── include/
 │   ├── magic_square.h       # MagicSquare class and solver declarations
-│   ├── program_options.h    # CLI argument parsing
-│   └── tabulate.hpp         # Table formatting library (header-only)
+│   └── program_options.h    # CLI argument parsing
 ├── src/
-│   ├── magic_square.cpp     # Core algorithm implementation
+│   ├── magic_square.cpp     # Core algorithm + ANSI grid renderer
 │   ├── program_options.cpp  # CLI argument parsing
 │   └── main.cpp             # Entry point
 └── tests/
     ├── CMakeLists.txt
-    ├── square_three_test.cpp  ... square_nine_test.cpp
-    ├── square_performance_test.cpp
-    └── square_visual_test.cpp
+    ├── square_three_test.cpp  ... square_nine_test.cpp                # correctness tests
+    └── square_three_visual_test.cpp  ... square_nine_visual_test.cpp  # live animated runs
 ```

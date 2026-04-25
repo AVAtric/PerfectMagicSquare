@@ -19,3 +19,4 @@ CMakeCache.txt
 CTestTestfile.cmake
 Makefile
 README.pdf
+result*.csv

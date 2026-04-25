@@ -9,10 +9,17 @@
 #include <fstream>
 #include <algorithm>
 #include <numeric>
+#include <chrono>
 
 #include <omp.h>
 
-#include "tabulate.hpp"
+namespace {
+    constexpr const char *ANSI_RESET    = "\033[0m";
+    constexpr const char *ANSI_BOLD     = "\033[1m";
+    constexpr const char *ANSI_FG       = "\033[30m";
+    constexpr const char *ANSI_BG_GREEN = "\033[42m";
+    constexpr const char *ANSI_BG_RED   = "\033[41m";
+}
 
 /**
  * Create a new magic square with given size.
@@ -25,18 +32,6 @@ MagicSquare::MagicSquare(int size, bool randomize)
           row_sums(size, 0), col_sums(size, 0), diag1_sum(0), diag2_sum(0) {
     if (randomize) this->randomize();
     else this->evaluate();
-}
-
-/**
- * Init square with 0 values.
- */
-void MagicSquare::init() {
-    std::fill(values.begin(), values.end(), 0);
-    std::fill(row_sums.begin(), row_sums.end(), 0);
-    std::fill(col_sums.begin(), col_sums.end(), 0);
-    diag1_sum = 0;
-    diag2_sum = 0;
-    computeFitnessFromSums();
 }
 
 /**
@@ -223,75 +218,55 @@ void MagicSquare::localSearch(int rounds) {
 }
 
 /**
- * Print square to commandline using tabulate library
+ * Print square to terminal with per-cell coloring via ANSI escapes.
+ * Green background = cell's row/column/diagonal sums are all correct,
+ * red = at least one is off. show_details controls whether colors render.
  */
 void MagicSquare::print(const std::string &title, bool show_details, bool show_fitness) {
-    std::cout << title << ":" << std::endl << std::endl;
+    std::cout << title << ":\n\n";
 
-    tabulate::Table square_table;
+    int valWidth = static_cast<int>(std::to_string(dimension * dimension).size());
 
-    square_table.format()
-            .font_style({tabulate::FontStyle::bold})
-            .font_align(tabulate::FontAlign::center)
-            .column_separator("")
-            .corner("")
-            .border_top("")
-            .border_bottom("")
-            .border_left("")
-            .border_right("");
-
-    for (int i = 0; i < dimension; i++) {
-        tabulate::Table::Row_t table_row;
-        for (int j = 0; j < dimension; j++) {
-            table_row.push_back(std::to_string(values[i * dimension + j]));
-        }
-        square_table.add_row(table_row);
-    }
-
+    // Precompute correctness flags once (each is O(1) on cached sums)
+    std::vector<int> rowFit, colFit;
+    int diag1Fit = 0, diag2Fit = 0;
     if (show_details) {
-        std::vector<int> rows_fitness(dimension);
-        std::vector<int> cols_fitness(dimension);
+        rowFit.resize(dimension);
+        colFit.resize(dimension);
         for (int i = 0; i < dimension; ++i) {
-            rows_fitness[i] = fitnessRows(i);
-            cols_fitness[i] = fitnessColumns(i);
+            rowFit[i] = fitnessRows(i);
+            colFit[i] = fitnessColumns(i);
         }
-
-        int diag1_fitness = fitnessDiagonal1();
-        int diag2_fitness = fitnessDiagonal2();
-
-        for (int i = 0; i < dimension; ++i) {
-            for (int j = 0; j < dimension; ++j) {
-                bool row_correct = (rows_fitness[i] == 0);
-                bool col_correct = (cols_fitness[j] == 0);
-                bool diag_correct = true;
-
-                if (i == j && diag1_fitness != 0)
-                    diag_correct = false;
-
-                if (i + j == dimension - 1 && diag2_fitness != 0)
-                    diag_correct = false;
-
-                bool cell_correct = row_correct && col_correct && diag_correct;
-
-                if (cell_correct) {
-                    square_table[i][j].format()
-                            .font_background_color(tabulate::Color::green)
-                            .font_color(tabulate::Color::grey);
-                } else {
-                    square_table[i][j].format()
-                            .font_background_color(tabulate::Color::red)
-                            .font_color(tabulate::Color::grey);
-                }
-            }
-        }
+        diag1Fit = fitnessDiagonal1();
+        diag2Fit = fitnessDiagonal2();
     }
 
-    std::cout << square_table << std::endl;
+    for (int i = 0; i < dimension; ++i) {
+        for (int j = 0; j < dimension; ++j) {
+            std::string s = std::to_string(values[i * dimension + j]);
+
+            if (show_details) {
+                bool ok = (rowFit[i] == 0) && (colFit[j] == 0)
+                          && !(i == j && diag1Fit != 0)
+                          && !(i + j == dimension - 1 && diag2Fit != 0);
+                std::cout << (ok ? ANSI_BG_GREEN : ANSI_BG_RED) << ANSI_FG << ANSI_BOLD;
+            }
+
+            // " ", right-aligned value, " "  -> e.g. "  9 " or " 19 "
+            std::cout << ' '
+                      << std::string(valWidth - s.size(), ' ') << s
+                      << ' ';
+
+            if (show_details) std::cout << ANSI_RESET;
+        }
+        std::cout << '\n';
+    }
+    std::cout << '\n';
 
     if (show_fitness)
-        std::cout << std::endl << "Fitness: " << this->getFitness() << std::endl;
+        std::cout << "Fitness: " << fitness << "\n\n";
 
-    std::cout << std::endl << std::endl;
+    std::cout << '\n';
 }
 
 /**
@@ -303,10 +278,8 @@ void MagicSquare::write(const std::string &name) {
     for (int i = 0; i < dimension; i++) {
         for (int j = 0; j < dimension; j++)
             outputFile << values[i * dimension + j] << ';';
-        outputFile << std::endl;
+        outputFile << '\n';
     }
-
-    outputFile.close();
 }
 
 /**
@@ -350,16 +323,6 @@ int MagicSquare::fitnessDiagonal2() const {
 }
 
 /**
- * Checks if given value exists in square.
- */
-bool MagicSquare::valueExist(int value) const {
-    for (int i = 0; i < dimension * dimension; i++)
-        if (values[i] == value)
-            return true;
-    return false;
-}
-
-/**
  * Copy assign magic square (copies cached sums, avoids recomputation).
  */
 MagicSquare &MagicSquare::operator=(const MagicSquare &other) {
@@ -400,17 +363,6 @@ void sort(std::vector<MagicSquare> &population) {
 }
 
 /**
- * Select the best third of the population (simplified, no expensive dedup).
- */
-void selection(std::vector<MagicSquare> &population, std::vector<MagicSquare> &selected) {
-    sort(population);
-    int count = static_cast<int>(population.size()) / 3;
-    selected.reserve(count);
-    for (int i = 0; i < count; i++)
-        selected.push_back(population[i]);
-}
-
-/**
  * Combine squares from population using tournament selection,
  * O(1) value existence check via bitset, and deterministic fill.
  */
@@ -429,7 +381,6 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
 #pragma omp for nowait
         for (int i = 0; i < numOffspring; i++) {
             MagicSquare child(size, false);
-            child.init();
 
             // Tournament selection: pick 2 candidates per parent, take the fitter one
             int p1 = distParent(rng);
@@ -447,15 +398,24 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
             const MagicSquare &parent1 = population[p1];
             const MagicSquare &parent2 = population[p2];
 
-            // O(1) value existence check via boolean array (replaces O(n^2) valueExist)
+            // Precompute per-row/col fitness for both parents (avoids n^2 redundant calls)
+            int p1Rows[9], p1Cols[9], p2Rows[9], p2Cols[9];
+            for (int k = 0; k < size; ++k) {
+                p1Rows[k] = parent1.fitnessRows(k);
+                p1Cols[k] = parent1.fitnessColumns(k);
+                p2Rows[k] = parent2.fitnessRows(k);
+                p2Cols[k] = parent2.fitnessColumns(k);
+            }
+
+            // O(1) value existence check via boolean array (max n*n = 81 for n=9)
             bool used[82] = {};
 
             for (int row = 0; row < size; ++row) {
                 for (int col = 0; col < size; ++col) {
                     int val1 = parent1.getValue(row, col);
                     int val2 = parent2.getValue(row, col);
-                    int chosenValue = ((parent1.fitnessRows(row) + parent1.fitnessColumns(col)) <
-                                       (parent2.fitnessRows(row) + parent2.fitnessColumns(col))) ? val1 : val2;
+                    int chosenValue = ((p1Rows[row] + p1Cols[col]) < (p2Rows[row] + p2Cols[col]))
+                                      ? val1 : val2;
                     if (!used[chosenValue]) {
                         child.setValue(row, col, chosenValue);
                         used[chosenValue] = true;
@@ -514,7 +474,7 @@ void mutate(std::vector<MagicSquare> &population, double probability) {
  * - Local search (steepest descent) on top candidates each generation
  * - Catastrophic restart on prolonged stagnation
  */
-MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations, bool verbose) {
+MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations, bool verbose, bool visualize) {
     int lastFitness = -1;
     int unchanged = 0;
     double probability = BASE_MUTATION;
@@ -522,6 +482,25 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
     int popSize = static_cast<int>(population.size());
     int eliteCount = std::max(2, popSize / 10);
     int lsRounds = size * size;
+
+    // Throttled live visualization: clears terminal and reprints best with colors
+    auto lastFrame = std::chrono::steady_clock::now();
+    const auto frameInterval = std::chrono::milliseconds(100);
+    auto liveFrame = [&](int it) {
+        if (!visualize) return;
+        auto now = std::chrono::steady_clock::now();
+        if (now - lastFrame < frameInterval) return;
+        lastFrame = now;
+        std::cout << "\033[2J\033[H";  // clear screen + cursor home
+        std::cout << "Generation " << it;
+        if (!infinite) std::cout << " / " << iterations;
+        std::cout << "  |  fitness " << population[0].getFitness()
+                  << "  |  mutation " << probability
+                  << "  |  stagnation " << unchanged
+                  << '\n';
+        population[0].print("Best candidate", true, false);
+        std::cout.flush();
+    };
 
     // Apply initial local search to best candidates
     sort(population);
@@ -568,7 +547,7 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
         // Re-sort after local search changed fitness values
         sort(offspring);
 
-        if (verbose) {
+        if (verbose && !visualize) {
             std::cout << "Gen " << it << " best fitness: " << population[0].getFitness()
                       << " offspring best: " << offspring[0].getFitness() << std::endl;
         }
@@ -590,6 +569,8 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
         }
 
         sort(population);
+
+        liveFrame(it);
 
         // Adaptive mutation + stagnation handling
         if (population.front().getFitness() == lastFitness) {

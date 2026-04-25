@@ -13,7 +13,7 @@ constexpr int magic_sum(int n) { return n * (n * n + 1) / 2; }
 
 // Define the mutation rate and the number of changes needed to increase the mutation rate
 const double BASE_MUTATION = 0.1;
-const double BASE_CHANGE_COUNT = 3;
+const int BASE_CHANGE_COUNT = 3;
 
 /**
  * Base structure of a single magic square.
@@ -23,8 +23,6 @@ const double BASE_CHANGE_COUNT = 3;
 class MagicSquare {
 public:
     explicit MagicSquare(int, bool = true);
-
-    void init();
 
     void randomize();
 
@@ -56,8 +54,6 @@ public:
 
     void setValue(int row, int col, int value) { this->values[row * dimension + col] = value; }
 
-    bool valueExist(int) const;
-
     MagicSquare &operator=(const MagicSquare &);
 
     friend bool operator==(const MagicSquare &, const MagicSquare &);
@@ -87,12 +83,10 @@ bool operator!=(const MagicSquare &, const MagicSquare &);
 
 void sort(std::vector<MagicSquare> &);
 
-void selection(std::vector<MagicSquare> &, std::vector<MagicSquare> &);
-
 void crossover(std::vector<MagicSquare> &, std::vector<MagicSquare> &, int);
 
 void mutate(std::vector<MagicSquare> &population, double probability);
 
-MagicSquare solve(std::vector<MagicSquare> &, int, int, bool = false);
+MagicSquare solve(std::vector<MagicSquare> &, int, int, bool = false, bool = false);
 
 #endif //PERFECT_MAGIC_SQUARE_MAGIC_SQUARE_H

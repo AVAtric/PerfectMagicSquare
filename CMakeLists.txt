@@ -24,12 +24,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Xclang -fopenmp")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
-
-# Suppress deprecation warnings from third-party headers (tabulate.hpp)
-add_compile_options(-Wno-deprecated-literal-operator)
 
 INCLUDE(FindPkgConfig)
 

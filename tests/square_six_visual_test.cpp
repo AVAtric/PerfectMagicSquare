@@ -22,7 +22,7 @@ int main() {
     for (int i = 0; i < POPULATION; i++) population.emplace_back(SIZE);
 
     auto start = std::chrono::high_resolution_clock::now();
-    auto square = solve(population, SIZE, ITERATIONS, true);
+    auto square = solve(population, SIZE, ITERATIONS, false, true);
     auto end = std::chrono::high_resolution_clock::now();
 
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
