@@ -83,7 +83,7 @@ The solver is a **memetic algorithm** combining a genetic algorithm for global e
 
 ### Benchmark results
 
-Measured on Apple M3 (Release build):
+Measured on Apple M1 Max (Release build):
 
 | Size | Population | Iterations | Time |
 |------|-----------|------------|------|
