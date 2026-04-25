@@ -114,3 +114,7 @@ Times vary between runs due to the stochastic nature of the algorithm.
     ├── square_three_test.cpp  ... square_nine_test.cpp                # correctness tests
     └── square_three_visual_test.cpp  ... square_nine_visual_test.cpp  # live animated runs
 ```
+
+## License
+
+Released under the [MIT License](LICENSE).
