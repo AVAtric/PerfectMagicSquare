@@ -1,169 +1,115 @@
-# Evolutionary Algorithm: Solving a magic square
+# Memetic Algorithm: Solving Magic Squares
 
-This is an implementation of an evolutionary algorithm in C++ for solving magic squares of sizes between three and nine.
-The program generates a population of random candidate solutions and evolves them over multiple generations using selection, crossover, and mutation.
-The fitness of each candidate is evaluated based on how closely it matches the constraints of a magic square.
+A high-performance C++ implementation for generating magic squares of sizes 3 to 9.
+Uses a memetic algorithm (genetic algorithm + steepest-descent local search) with OpenMP parallelization to find solutions fast.
+
+## Build
+
+Requires a C++20 compiler and OpenMP support.
+
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . -j$(nproc)
+```
+
+On macOS with Homebrew:
+```bash
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . -j$(sysctl -n hw.ncpu)
+```
 
 ## Usage
 
-To run the program, generate the make files using cmake and compile with your C++ compiler of choice.
-Then run the resulting executable. The size of the magic square can be passed as a command-line argument. For example:
-
 ```bash
-$ cmake .
-$ make
-$ ./bin/PerfectMagicSquare -d 3 -p 1000 -i 1000
+./bin/PerfectMagicSquare -d <dimension> -p <population> -i <iterations> [-o <output>] [-v] [-s]
 ```
 
-This will solve a 3x3 magic square and output the solution to the console.
+| Flag | Description | Range |
+|------|-------------|-------|
+| `-d` | Square dimension | 3 - 9 |
+| `-p` | Population size | 1000 - 10000 |
+| `-i` | Max iterations (-1 = infinite) | 1000 - 100000 |
+| `-o` | Output CSV file name (without extension) | - |
+| `-v` | Verbose mode | - |
+| `-s` | Silent mode | - |
+| `-h` | Help | - |
 
-Following command can be used to run tests and generate squares of sizes between 3 and 9:
-
+Example:
 ```bash
-$ ctest
+./bin/PerfectMagicSquare -d 5 -p 5000 -i 10000
 ```
 
-## Implementation Details
+## Tests
 
-The program uses a `MagicSquare` class to represent a candidate solution to the magic square problem. The `MagicSquare` class contains a 2D array of integers to store the values of the magic square and a `fitness` value to represent how well it matches the constraints of a magic square.
-
-The main loop of the program repeatedly evaluates the fitness of the population, selects the best candidates,
-performs crossover and mutation to generate offspring,
-and replaces candidates with the offspring. To make the algorithm more efficient additional new candidates are added to the population.
-An elimination of duplicates is permanently happening in the process.
-The program terminates when a solution with a fitness of 0 (i.e., a perfect magic square) is found or after a maximum number of iterations is reached.
-
-## Limitations
-
-The program uses a simple crossover strategy, which may not be the most effective for solving magic squares.
-Other selection and crossover strategies could be investigated to improve the algorithm's performance.
-
-The program may not find a solution to larger magic squares within a reasonable amount of time or memory.
-Additional optimizations or heuristics may be needed to solve larger magic squares efficiently.
-
-## Test results
-
-Running all tests with the given parameters:
-
-![results_image](img/tests.png "Test results")
-
-### Resulting squares
-
-3x3 Square:
+Run all tests via CTest:
 ```bash
-+---+---+---+
-| 2 | 7 | 6 |
-+---+---+---+
-| 9 | 5 | 1 |
-+---+---+---+
-| 4 | 3 | 8 |
-+---+---+---+
+cd build
+ctest --output-on-failure
 ```
 
-4x4 Square:
+Individual test binaries exist for each square size (3-9), plus a visual test and a performance benchmark:
 ```bash
-+----+----+----+----+
-| 13 |  4 | 16 |  1 |
-+----+----+----+----+
-| 11 |  6 | 10 |  7 |
-+----+----+----+----+
-|  2 | 15 |  3 | 14 |
-+----+----+----+----+
-|  8 |  9 |  5 | 12 |
-+----+----+----+----+
+./bin/PerfectMagicSquareTestsThree
+./bin/PerfectMagicSquareTestsPerformance
 ```
 
-5x5 Square:
-```bash
-+----+----+----+----+----+
-|  1 | 14 | 20 | 17 | 13 |
-+----+----+----+----+----+
-| 16 | 24 |  5 |  8 | 12 |
-+----+----+----+----+----+
-|  3 | 18 | 19 | 21 |  4 |
-+----+----+----+----+----+
-| 22 |  2 |  6 | 10 | 25 |
-+----+----+----+----+----+
-| 23 |  7 | 15 |  9 | 11 |
-+----+----+----+----+----+
-```
+## Algorithm
 
-6x6 Square:
-```bash
-+----+----+----+----+----+----+
-|  3 |  8 | 30 | 32 | 20 | 18 |
-+----+----+----+----+----+----+
-|  7 |  9 | 15 | 26 | 29 | 25 |
-+----+----+----+----+----+----+
-| 17 | 33 | 24 |  6 | 12 | 19 |
-+----+----+----+----+----+----+
-| 36 | 10 | 28 | 31 |  2 |  4 |
-+----+----+----+----+----+----+
-| 34 | 16 | 13 |  5 | 21 | 22 |
-+----+----+----+----+----+----+
-| 14 | 35 |  1 | 11 | 27 | 23 |
-+----+----+----+----+----+----+
-```
+The solver is a **memetic algorithm** combining a genetic algorithm for global exploration with steepest-descent local search for fast local convergence.
 
-7x7 Square:
-```bash
-+----+----+----+----+----+----+----+
-| 18 | 35 |  3 | 46 | 30 | 22 | 21 |
-+----+----+----+----+----+----+----+
-| 41 |  9 | 26 | 43 | 12 | 37 |  7 |
-+----+----+----+----+----+----+----+
-| 40 | 27 | 29 | 31 | 34 |  1 | 13 |
-+----+----+----+----+----+----+----+
-| 47 |  2 | 38 | 24 | 14 | 45 |  5 |
-+----+----+----+----+----+----+----+
-|  6 | 25 | 16 | 17 | 33 | 36 | 42 |
-+----+----+----+----+----+----+----+
-|  8 | 28 | 44 |  4 | 20 | 23 | 48 |
-+----+----+----+----+----+----+----+
-| 15 | 49 | 19 | 10 | 32 | 11 | 39 |
-+----+----+----+----+----+----+----+
-```
+### Key components
 
-8x8 Square:
-```bash
-+----+----+----+----+----+----+----+----+
-| 39 |  1 | 18 | 43 | 50 | 64 | 20 | 25 |
-+----+----+----+----+----+----+----+----+
-| 16 | 63 | 45 | 44 | 10 |  4 | 24 | 54 |
-+----+----+----+----+----+----+----+----+
-| 36 | 11 | 14 | 48 | 60 | 22 | 17 | 52 |
-+----+----+----+----+----+----+----+----+
-| 42 |  2 | 23 | 15 | 32 | 46 | 47 | 53 |
-+----+----+----+----+----+----+----+----+
-| 40 | 62 |  5 | 30 | 38 | 35 |  9 | 41 |
-+----+----+----+----+----+----+----+----+
-| 28 |  7 | 61 | 26 | 31 | 49 | 55 |  3 |
-+----+----+----+----+----+----+----+----+
-| 51 | 58 | 37 | 33 | 27 |  6 | 29 | 19 |
-+----+----+----+----+----+----+----+----+
-|  8 | 56 | 57 | 21 | 12 | 34 | 59 | 13 |
-+----+----+----+----+----+----+----+----+
-```
+- **Representation**: Each candidate is a permutation of 1..n*n arranged in an n x n grid.
+- **Fitness**: Sum of absolute deviations from the magic sum across all rows, columns, and both diagonals. A fitness of 0 means a valid magic square.
+- **Selection**: Tournament selection (size 2) for parent picking in crossover.
+- **Crossover**: Cell-wise selection from the fitter parent (per row/column fitness), with deterministic fill of missing values.
+- **Mutation**: Random swap of two cell values with adaptive probability that increases on stagnation.
+- **Local search**: Exhaustive steepest-descent that evaluates all C(n*n, 2) possible swaps per round using O(1) delta fitness computation. Self-terminates at local optima.
+- **Elitism**: Top 10% of the population is preserved across generations.
+- **Catastrophic restart**: After 30 generations of stagnation, the population is regenerated (keeping elite) to escape local optima.
 
-9x9 Square:
-```bash
-+----+----+----+----+----+----+----+----+----+
-| 19 | 78 | 43 |  3 | 11 | 68 | 72 | 36 | 39 |
-+----+----+----+----+----+----+----+----+----+
-| 75 | 33 | 28 | 14 | 57 | 40 | 66 | 44 | 12 |
-+----+----+----+----+----+----+----+----+----+
-| 64 | 79 | 69 |  7 | 35 | 30 | 48 |  5 | 32 |
-+----+----+----+----+----+----+----+----+----+
-| 46 | 13 | 65 | 77 | 16 | 29 | 60 | 61 |  2 |
-+----+----+----+----+----+----+----+----+----+
-| 22 | 38 | 58 | 63 | 50 | 55 |  6 |  1 | 76 |
-+----+----+----+----+----+----+----+----+----+
-| 24 | 10 | 26 | 49 | 54 | 47 | 34 | 51 | 74 |
-+----+----+----+----+----+----+----+----+----+
-| 53 | 27 | 15 | 67 | 56 | 18 | 17 | 71 | 45 |
-+----+----+----+----+----+----+----+----+----+
-| 41 | 70 | 42 |  8 | 59 | 73 |  4 | 20 | 52 |
-+----+----+----+----+----+----+----+----+----+
-| 25 | 21 | 23 | 81 | 31 |  9 | 62 | 80 | 37 |
-+----+----+----+----+----+----+----+----+----+
+### Performance optimizations
+
+- **Flat array storage** (row-major `vector<int>`) instead of `vector<vector<int>>` for cache-friendly access.
+- **Cached row/column/diagonal sums** enable O(1) fitness queries and incremental updates after swaps.
+- **O(1) swap evaluation** in local search via delta computation on cached sums (no full fitness recompute).
+- **O(1) value existence check** in crossover using a boolean array instead of O(n*n) linear scan.
+- **No expensive deduplication**: Removed all `std::find()` calls over population vectors (was O(pop * n*n) per call).
+- **OpenMP parallelization** of crossover, mutation, and local search phases.
+
+### Benchmark results
+
+Measured on Apple M3 (Release build):
+
+| Size | Population | Iterations | Time |
+|------|-----------|------------|------|
+| 3x3 | 1,000 | 1,000 | < 1 ms |
+| 4x4 | 10,000 | 10,000 | ~3 ms |
+| 5x5 | 10,000 | 10,000 | ~1.4 s |
+| 6x6 | 10,000 | 100,000 | ~0.3 s |
+| 7x7 | 10,000 | 100,000 | ~3 s |
+| 8x8 | 10,000 | 100,000 | ~1.5 s |
+| 9x9 | 10,000 | 100,000 | ~6 s |
+
+Times vary between runs due to the stochastic nature of the algorithm.
+
+## Project Structure
+
+```
+.
+├── CMakeLists.txt
+├── include/
+│   ├── magic_square.h       # MagicSquare class and solver declarations
+│   ├── program_options.h    # CLI argument parsing
+│   └── tabulate.hpp         # Table formatting library (header-only)
+├── src/
+│   ├── magic_square.cpp     # Core algorithm implementation
+│   ├── program_options.cpp  # CLI argument parsing
+│   └── main.cpp             # Entry point
+└── tests/
+    ├── CMakeLists.txt
+    ├── square_three_test.cpp  ... square_nine_test.cpp
+    ├── square_performance_test.cpp
+    └── square_visual_test.cpp
 ```

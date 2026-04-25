@@ -36,16 +36,16 @@ int main(int argc, char **argv) {
     }
 
     if (program_options::has(args, "-d"))
-        size = std::stoi(program_options::get(args, "-d").begin());
+        size = std::stoi(std::string(program_options::get(args, "-d")));
 
     if (program_options::has(args, "-p"))
-        populationSize = std::stoi(program_options::get(args, "-p").begin());
+        populationSize = std::stoi(std::string(program_options::get(args, "-p")));
 
     if (program_options::has(args, "-i"))
-        iterations = std::stoi(program_options::get(args, "-i").begin());
+        iterations = std::stoi(std::string(program_options::get(args, "-i")));
 
     if (program_options::has(args, "-o"))
-        name = program_options::get(args, "-o").begin();
+        name = std::string(program_options::get(args, "-o"));
 
     if (silent && verbose) {
         std::cout << "Can't combine verbose and silent mode!" << std::endl << std::endl;
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
         }
 
         if (!name.empty())
-            square.write(name.append(".csv"));
+            square.write(name + ".csv");
 
         return EXIT_SUCCESS;
     }

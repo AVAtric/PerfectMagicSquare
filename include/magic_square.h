@@ -9,7 +9,7 @@
 #include <vector>
 
 // Calculate the magic sum of a square of given size
-#define MAGIC_SUM(square_size) ((square_size * (square_size * square_size + 1)) / 2)
+constexpr int magic_sum(int n) { return n * (n * n + 1) / 2; }
 
 // Define the mutation rate and the number of changes needed to increase the mutation rate
 const double BASE_MUTATION = 0.1;
@@ -32,29 +32,31 @@ public:
 
     void swap();
 
+    void localSearch(int rounds);
+
     void print(const std::string &title = "", bool show_details = true, bool show_fitness = true);
 
-    void write(std::string &);
+    void write(const std::string &);
 
-    int fitnessRows(int row_index = -1);
+    int fitnessRows(int row_index = -1) const;
 
-    int fitnessColumns(int col_index = -1);
+    int fitnessColumns(int col_index = -1) const;
 
-    int fitnessDiagonal1();
+    int fitnessDiagonal1() const;
 
-    int fitnessDiagonal2();
+    int fitnessDiagonal2() const;
 
     [[nodiscard]] auto getFitness() const { return this->fitness; }
 
     [[nodiscard]] auto getSum() const { return this->sum; }
 
-    [[nodiscard]] auto getValue(int row, int col) const { return this->values[row][col]; }
+    [[nodiscard]] auto getValue(int row, int col) const { return this->values[row * dimension + col]; }
 
     auto &getValues() { return this->values; }
 
-    void setValue(int row, int col, int value) { this->values[row][col] = value; }
+    void setValue(int row, int col, int value) { this->values[row * dimension + col] = value; }
 
-    bool valueExist(int);
+    bool valueExist(int) const;
 
     MagicSquare &operator=(const MagicSquare &);
 
@@ -63,10 +65,20 @@ public:
     friend bool operator!=(const MagicSquare &, const MagicSquare &);
 
 private:
-    std::vector<std::vector<int>> values;
+    std::vector<int> values;    // flat row-major array (was vector<vector<int>>)
     int dimension;
     int fitness;
     int sum;
+
+    // Cached sums for O(1) fitness queries and incremental swap updates
+    std::vector<int> row_sums;
+    std::vector<int> col_sums;
+    int diag1_sum;
+    int diag2_sum;
+
+    void recomputeSums();
+
+    void computeFitnessFromSums();
 };
 
 bool operator==(const MagicSquare &, const MagicSquare &);
