@@ -89,60 +89,91 @@ void MagicSquare::swap() {
 /**
  * Print square to commandline using tabulate library
  *
- * @param details
+ * @param show_details
  */
-void MagicSquare::print(bool details) {
+void MagicSquare::print(const std::string &title, bool show_details, bool show_fitness) {
+    // Print the title
+    std::cout << title << ":" << std::endl << std::endl;
+
+    // Square table
     tabulate::Table square_table;
 
     // Initial table formatting for better readability
     square_table.format()
             .font_style({tabulate::FontStyle::bold})
             .font_align(tabulate::FontAlign::center)
-            .column_separator("");
+            .column_separator("")
+            .corner("")
+            .border_top("")
+            .border_bottom("")
+            .border_left("")
+            .border_right("");
 
     // Adding rows
-    for (auto &value: this->values) {
+    for (const auto &row : this->values) {
         tabulate::Table::Row_t table_row;
-        for (int j: value) table_row.push_back(std::to_string(j));
+        for (int value : row) {
+            table_row.push_back(std::to_string(value));
+        }
         square_table.add_row(table_row);
     }
 
-    if (details) {
-        // Apply initial color formatting after all rows have been added
-        for (size_t i = 0; i < this->values.size(); ++i)
-            for (size_t j = 0; j < this->values[i].size(); ++j)
-                square_table[i][j].format()
-                        .font_background_color(tabulate::Color::green)
-                        .font_color(tabulate::Color::grey);
+    if (show_details) {
+        // Precompute fitness for rows and columns
+        std::vector<int> rows_fitness(this->dimension);
+        std::vector<int> cols_fitness(this->dimension);
+        for (int i = 0; i < this->dimension; ++i) {
+            rows_fitness[i] = fitnessRows(i);
+            cols_fitness[i] = fitnessColumns(i);
+        }
 
-        // Check and color rows and columns based on their fitness
-        for (int i = 0; i < this->values.size(); ++i) {
-            int row_fitness = fitnessRows(i);
-            int col_fitness = fitnessColumns(i);
+        // Precompute fitness for diagonals
+        int diag1_fitness = fitnessDiagonal1();
+        int diag2_fitness = fitnessDiagonal2();
 
-            for (int j = 0; j < this->values[i].size(); ++j)
-                if (row_fitness != 0 || col_fitness != 0)
+        // Loop through each cell and apply coloring
+        for (size_t i = 0; i < this->values.size(); ++i) {
+            for (size_t j = 0; j < this->values[i].size(); ++j) {
+                bool row_correct = (rows_fitness[i] == 0);
+                bool col_correct = (cols_fitness[j] == 0);
+                bool diag_correct = true;
+
+                // Check if the cell is on the first diagonal
+                bool is_on_diag1 = (i == j);
+                if (is_on_diag1 && diag1_fitness != 0) {
+                    diag_correct = false;
+                }
+
+                // Check if the cell is on the second diagonal
+                bool is_on_diag2 = (i + j == this->dimension - 1);
+                if (is_on_diag2 && diag2_fitness != 0) {
+                    diag_correct = false;
+                }
+
+                // The cell is correct if row, column, and diagonals (if applicable) are correct
+                bool cell_correct = row_correct && col_correct && diag_correct;
+
+                if (cell_correct) {
                     square_table[i][j].format()
-                            .font_background_color(tabulate::Color::red);
+                            .font_background_color(tabulate::Color::green)
+                            .font_color(tabulate::Color::grey);
+                } else {
+                    square_table[i][j].format()
+                            .font_background_color(tabulate::Color::red)
+                            .font_color(tabulate::Color::grey);
+                }
+            }
         }
-
-        // Coloring diagonals if their fitness is not zero
-        if (fitnessDiagonal1() == 0) {
-            for (int i = 0; i < this->values.size(); ++i)
-                square_table[i][i].format()
-                        .font_background_color(tabulate::Color::green);
-        }
-
-        if (fitnessDiagonal2() == 0) {
-            for (int i = 0; i < this->values.size(); ++i)
-                square_table[i][this->values.size() - 1 - i].format()
-                        .font_background_color(tabulate::Color::green);
-        }
-
-        std::cout << "Fitness: " << this->getFitness() << std::endl;
     }
 
-    std::cout << square_table << std::endl << std::endl;
+    // Print the square table
+    std::cout << square_table << std::endl;
+
+    // Print fitness information if requested
+    if (show_fitness)
+        std::cout << std::endl << "Fitness: " << this->getFitness() << std::endl;
+
+    std::cout << std::endl << std::endl;
 }
 
 /**
@@ -169,27 +200,23 @@ void MagicSquare::write(std::string &name) {
  * @return
  */
 int MagicSquare::fitnessRows(int row_index) {
-    int fit = 0;
-    int row = 0;
-    bool one_row = false;
-
-    for (auto &rows: this->values) {
-        int i = 0;
-
-        if (row_index != -1 && row != row_index) {
-            row++;
-            one_row = true;
-            continue;
+    if (row_index != -1) {
+        // Calculate fitness for a single row
+        int sum_row = 0;
+        for (int col = 0; col < this->dimension; ++col)
+            sum_row += this->values[row_index][col];
+        return std::abs(sum_row - this->sum);
+    } else {
+        // Calculate fitness for all rows
+        int fit = 0;
+        for (int row = 0; row < this->dimension; ++row) {
+            int sum_row = 0;
+            for (int col = 0; col < this->dimension; ++col)
+                sum_row += this->values[row][col];
+            fit += std::abs(sum_row - this->sum);
         }
-
-        for (auto cols: rows) i += cols;
-
-        if (one_row) return std::abs(i - this->sum);
-
-        fit += std::abs(i - this->sum);
+        return fit;
     }
-
-    return fit;
 }
 
 /**
@@ -198,25 +225,23 @@ int MagicSquare::fitnessRows(int row_index) {
  * @return
  */
 int MagicSquare::fitnessColumns(int col_index) {
-    int fit = 0;
-
-    for (int cols = 0; cols < this->dimension; cols++) {
-        int i = 0;
-
-        if (col_index != -1) {
-            for (auto &value: this->values)
-                i += value[col_index];
-
-            return std::abs(i - this->sum);
+    if (col_index != -1) {
+        // Calculate fitness for a single column
+        int sum_col = 0;
+        for (int row = 0; row < this->dimension; ++row)
+            sum_col += this->values[row][col_index];
+        return std::abs(sum_col - this->sum);
+    } else {
+        // Calculate fitness for all columns
+        int fit = 0;
+        for (int col = 0; col < this->dimension; ++col) {
+            int sum_col = 0;
+            for (int row = 0; row < this->dimension; ++row)
+                sum_col += this->values[row][col];
+            fit += std::abs(sum_col - this->sum);
         }
-
-        for (auto &value: this->values)
-            i += value[cols];
-
-        fit += std::abs(i - this->sum);
+        return fit;
     }
-
-    return fit;
 }
 
 /**
@@ -234,15 +259,15 @@ int MagicSquare::fitnessDiagonal1() {
 }
 
 /**
- * Calculate fitness of diagonal (left bottom to right top)
+ * Calculate fitness of diagonal (right top to left bottom)
  *
  * @return
  */
 int MagicSquare::fitnessDiagonal2() {
     int s = 0;
 
-    for (int i = this->dimension - 1; i >= 0; i--)
-        s += this->values[this->dimension - (i + 1)][i];
+    for (int i = 0; i < this->dimension; i++)
+        s += this->values[i][this->dimension - i - 1];
 
     return std::abs(s - this->sum);
 }
@@ -376,7 +401,7 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
                     int val1 = parent1.getValue(row, col);
                     int val2 = parent2.getValue(row, col);
                     int chosenValue = ((parent1.fitnessRows(row) + parent1.fitnessColumns(col)) <
-                            (parent2.fitnessRows(row) + parent2.fitnessColumns(col))) ? val1 : val2;
+                                       (parent2.fitnessRows(row) + parent2.fitnessColumns(col))) ? val1 : val2;
                     if (!child.valueExist(chosenValue)) {
                         child.setValue(row, col, chosenValue);
                     }
@@ -421,9 +446,10 @@ void mutate(std::vector<MagicSquare> &population, double probability) {
         thread_local std::uniform_real_distribution<double> dist(0.0, 1.0);
         // Mutate each square with a certain probability
 #pragma omp for nowait
-        for (auto &square: population)
+        for (size_t i = 0; i < population.size(); ++i) {
             if (dist(rng) < probability)
-                square.swap();
+                population[i].swap();
+        }
     }
 }
 
@@ -445,9 +471,9 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
     if (iterations == -1) infinite = true;
 
     for (int it = 0; (it < iterations) || infinite; it++) {
-        auto selected = std::vector<MagicSquare>();
-        auto offspring = std::vector<MagicSquare>();
-        auto check = std::vector<MagicSquare>();
+        std::vector<MagicSquare> selected;
+        std::vector<MagicSquare> offspring;
+        std::vector<MagicSquare> check;
         selection(population, selected);
 
         if (selected.front().getFitness() == 0)
@@ -458,11 +484,8 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
 
             std::cout << "Current top 5:" << std::endl << std::endl;
 
-            while (count > 0) {
-                std::cout << '#' << count << ':' << std::endl;
-                selected[count - 1].print();
-                count--;
-            }
+            for (int i = 0; i < std::min(count, (int) selected.size()); ++i)
+                selected[i].print("Round #" + std::to_string(i + 1));
         }
 
         crossover(population, offspring, size);
@@ -482,19 +505,23 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
 
         mutate(offspring, probability);
 
-        int i = 0;
-        for (auto &oneSquare: selected) {
-            population[i] = oneSquare;
-            i++;
+        lastFitness = population.front().getFitness();
+
+        size_t i = 0;
+        // Update population with selected individuals
+        for (; i < selected.size() && i < population.size(); ++i) {
+            population[i] = selected[i];
         }
 
-        for (auto &oneSquare: offspring) {
-            if (std::find(selected.begin(), selected.end(), oneSquare) == selected.end()) {
-                population[i] = oneSquare;
+        // Add offspring to the population
+        for (size_t j = 0; j < offspring.size() && i < population.size(); ++j) {
+            if (std::find(selected.begin(), selected.end(), offspring[j]) == selected.end()) {
+                population[i] = offspring[j];
                 i++;
             }
         }
 
+        // Fill the rest with new random squares
         while (i < population.size()) {
             MagicSquare tmpSquare = MagicSquare(size);
 
@@ -506,6 +533,8 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
                 i++;
             }
         }
+
+        lastFitness = population.front().getFitness();
     }
 
     sort(population);

@@ -80,8 +80,7 @@ int main(int argc, char **argv) {
 
     if (square.getFitness() == 0) {
         if (!silent) {
-            std::cout << "Found solution:" << std::endl;
-            square.print(false);
+            square.print("Solution", true, false);
         }
 
         if (!name.empty())

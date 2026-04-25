@@ -23,8 +23,7 @@ int main(int argc, char **argv) {
     auto square = solve(population, SIZE, ITERATIONS, verbose);
 
     if (square.getFitness() == 0) {
-        std::cout << "Found solution:" << std::endl;
-        square.print(false);
+        square.print("5x5 Solution", true, false);
         square.write(name);
 
         return EXIT_SUCCESS;

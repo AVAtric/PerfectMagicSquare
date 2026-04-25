@@ -32,7 +32,7 @@ public:
 
     void swap();
 
-    void print(bool = true);
+    void print(const std::string &title = "", bool show_details = true, bool show_fitness = true);
 
     void write(std::string &);
 
