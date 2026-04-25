@@ -130,21 +130,22 @@ void MagicSquare::swap() {
  * @param rounds maximum number of improvement rounds
  */
 void MagicSquare::localSearch(int rounds) {
-    int n2 = dimension * dimension;
+    const int n2 = dimension * dimension;
 
     for (int r = 0; r < rounds && fitness > 0; r++) {
         int bestIdx1 = -1, bestIdx2 = -1;
         int bestFitness = fitness;
+        bool found_perfect = false;
 
-        for (int idx1 = 0; idx1 < n2 - 1; idx1++) {
-            int r1 = idx1 / dimension, c1 = idx1 % dimension;
+        for (int idx1 = 0; idx1 < n2 - 1 && !found_perfect; idx1++) {
+            const int r1 = idx1 / dimension, c1 = idx1 % dimension;
 
             for (int idx2 = idx1 + 1; idx2 < n2; idx2++) {
-                int r2 = idx2 / dimension, c2 = idx2 % dimension;
-                int diff = values[idx1] - values[idx2];
+                const int r2 = idx2 / dimension, c2 = idx2 % dimension;
+                const int diff = values[idx1] - values[idx2];
                 if (diff == 0) continue;
 
-                // O(1) trial fitness via delta computation
+                // O(1) trial fitness via delta on cached sums.
                 int trialFitness = fitness;
 
                 if (r1 != r2) {
@@ -161,7 +162,7 @@ void MagicSquare::localSearch(int rounds) {
                     trialFitness += std::abs(col_sums[c2] + diff - sum);
                 }
 
-                bool on_d1_1 = (r1 == c1), on_d1_2 = (r2 == c2);
+                const bool on_d1_1 = (r1 == c1), on_d1_2 = (r2 == c2);
                 if (on_d1_1 || on_d1_2) {
                     int new_d1 = diag1_sum;
                     if (on_d1_1) new_d1 -= diff;
@@ -170,8 +171,8 @@ void MagicSquare::localSearch(int rounds) {
                     trialFitness += std::abs(new_d1 - sum);
                 }
 
-                bool on_d2_1 = (r1 + c1 == dimension - 1);
-                bool on_d2_2 = (r2 + c2 == dimension - 1);
+                const bool on_d2_1 = (r1 + c1 == dimension - 1);
+                const bool on_d2_2 = (r2 + c2 == dimension - 1);
                 if (on_d2_1 || on_d2_2) {
                     int new_d2 = diag2_sum;
                     if (on_d2_1) new_d2 -= diff;
@@ -184,12 +185,14 @@ void MagicSquare::localSearch(int rounds) {
                     bestFitness = trialFitness;
                     bestIdx1 = idx1;
                     bestIdx2 = idx2;
-                    if (bestFitness == 0) goto apply_swap;
+                    if (bestFitness == 0) {
+                        found_perfect = true;
+                        break;
+                    }
                 }
             }
         }
 
-        apply_swap:
         if (bestIdx1 != -1 && bestFitness < fitness) {
             int r1 = bestIdx1 / dimension, c1 = bestIdx1 % dimension;
             int r2 = bestIdx2 / dimension, c2 = bestIdx2 % dimension;
@@ -222,7 +225,7 @@ void MagicSquare::localSearch(int rounds) {
  * Green background = cell's row/column/diagonal sums are all correct,
  * red = at least one is off. show_details controls whether colors render.
  */
-void MagicSquare::print(const std::string &title, bool show_details, bool show_fitness) {
+void MagicSquare::print(const std::string &title, bool show_details, bool show_fitness) const {
     std::cout << title << ":\n\n";
 
     int valWidth = static_cast<int>(std::to_string(dimension * dimension).size());
@@ -272,8 +275,8 @@ void MagicSquare::print(const std::string &title, bool show_details, bool show_f
 /**
  * Output square to a csv file.
  */
-void MagicSquare::write(const std::string &name) {
-    std::ofstream outputFile(name, std::ios::trunc);
+void MagicSquare::write(const std::string &path) const {
+    std::ofstream outputFile(path, std::ios::trunc);
 
     for (int i = 0; i < dimension; i++) {
         for (int j = 0; j < dimension; j++)
@@ -328,7 +331,9 @@ int MagicSquare::fitnessDiagonal2() const {
 MagicSquare &MagicSquare::operator=(const MagicSquare &other) {
     if (this != &other) {
         values = other.values;
+        dimension = other.dimension;
         fitness = other.fitness;
+        sum = other.sum;
         row_sums = other.row_sums;
         col_sums = other.col_sums;
         diag1_sum = other.diag1_sum;
@@ -399,7 +404,8 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
             const MagicSquare &parent2 = population[p2];
 
             // Precompute per-row/col fitness for both parents (avoids n^2 redundant calls)
-            int p1Rows[9], p1Cols[9], p2Rows[9], p2Cols[9];
+            int p1Rows[MAX_DIMENSION], p1Cols[MAX_DIMENSION];
+            int p2Rows[MAX_DIMENSION], p2Cols[MAX_DIMENSION];
             for (int k = 0; k < size; ++k) {
                 p1Rows[k] = parent1.fitnessRows(k);
                 p1Cols[k] = parent1.fitnessColumns(k);
@@ -407,8 +413,8 @@ void crossover(std::vector<MagicSquare> &population, std::vector<MagicSquare> &o
                 p2Cols[k] = parent2.fitnessColumns(k);
             }
 
-            // O(1) value existence check via boolean array (max n*n = 81 for n=9)
-            bool used[82] = {};
+            // O(1) value existence check; values are 1..n*n, so size n*n+1.
+            bool used[MAX_DIMENSION * MAX_DIMENSION + 1] = {};
 
             for (int row = 0; row < size; ++row) {
                 for (int col = 0; col < size; ++col) {
@@ -475,13 +481,19 @@ void mutate(std::vector<MagicSquare> &population, double probability) {
  * - Catastrophic restart on prolonged stagnation
  */
 MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations, bool verbose, bool visualize) {
+    constexpr int STAGNATION_RESTART = 30;       // generations w/o improvement before restart
+    constexpr int INITIAL_LS_CANDIDATES = 20;    // top-N seed squares to refine before evolving
+    constexpr int OFFSPRING_LS_CANDIDATES = 10;  // top-N offspring to refine each generation
+    constexpr double MUTATION_STEP = 0.1;        // adaptive mutation increment on stagnation
+    constexpr double MUTATION_MAX = 1.0;
+
     int lastFitness = -1;
     int unchanged = 0;
     double probability = BASE_MUTATION;
-    bool infinite = (iterations == -1);
-    int popSize = static_cast<int>(population.size());
-    int eliteCount = std::max(2, popSize / 10);
-    int lsRounds = size * size;
+    const bool infinite = (iterations == -1);
+    const int popSize = static_cast<int>(population.size());
+    const int eliteCount = std::max(2, popSize / 10);
+    const int lsRounds = size * size;
 
     // Throttled live visualization: clears terminal and reprints best with colors
     auto lastFrame = std::chrono::steady_clock::now();
@@ -507,7 +519,7 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
     if (population.front().getFitness() == 0)
         return population.front();
 
-    int initLS = std::min(20, popSize);
+    const int initLS = std::min(INITIAL_LS_CANDIDATES, popSize);
 #pragma omp parallel for default(none) shared(population, initLS, lsRounds)
     for (int i = 0; i < initLS; i++) {
         population[i].localSearch(lsRounds);
@@ -533,7 +545,7 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
 
         // Local search on top offspring (parallel)
         sort(offspring);
-        int lsCount = std::min(10, static_cast<int>(offspring.size()));
+        const int lsCount = std::min(OFFSPRING_LS_CANDIDATES, static_cast<int>(offspring.size()));
 #pragma omp parallel for default(none) shared(offspring, lsCount, lsRounds)
         for (int i = 0; i < lsCount; i++) {
             offspring[i].localSearch(lsRounds);
@@ -549,7 +561,7 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
 
         if (verbose && !visualize) {
             std::cout << "Gen " << it << " best fitness: " << population[0].getFitness()
-                      << " offspring best: " << offspring[0].getFitness() << std::endl;
+                      << " offspring best: " << offspring[0].getFitness() << '\n';
         }
 
         // Build next generation: elite + offspring + random
@@ -575,17 +587,17 @@ MagicSquare solve(std::vector<MagicSquare> &population, int size, int iterations
         // Adaptive mutation + stagnation handling
         if (population.front().getFitness() == lastFitness) {
             unchanged++;
-            if (probability < 1.0 && unchanged >= BASE_CHANGE_COUNT)
-                probability += 0.1;
+            if (probability < MUTATION_MAX && unchanged >= BASE_CHANGE_COUNT)
+                probability += MUTATION_STEP;
 
             // Catastrophic restart after prolonged stagnation
-            if (unchanged > 30) {
+            if (unchanged > STAGNATION_RESTART) {
                 // Keep the very best, regenerate everything else
                 for (int j = eliteCount; j < popSize; j++) {
                     population[j] = MagicSquare(size);
                 }
                 // Apply local search to new random squares
-                int restartLS = std::min(20, popSize - eliteCount);
+                const int restartLS = std::min(INITIAL_LS_CANDIDATES, popSize - eliteCount);
 #pragma omp parallel for default(none) shared(population, eliteCount, restartLS, lsRounds)
                 for (int j = 0; j < restartLS; j++) {
                     population[eliteCount + j].localSearch(lsRounds);

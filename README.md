@@ -48,7 +48,7 @@ cd build
 ctest --output-on-failure
 ```
 
-Two binaries exist per square size (3-9): a correctness test and a live visual test.
+Two binaries exist per square size (3-9): a correctness test and a live visual test. Each is a one-line stub that calls into `tests/test_helpers.h`.
 ```bash
 ./bin/PerfectMagicSquareTestsThree         # correctness, validates 3x3 solution
 ./bin/PerfectMagicSquareTestsFiveVisual    # live animated 5x5 run
@@ -111,8 +111,9 @@ Times vary between runs due to the stochastic nature of the algorithm.
 │   └── main.cpp             # Entry point
 └── tests/
     ├── CMakeLists.txt
-    ├── square_three_test.cpp  ... square_nine_test.cpp                # correctness tests
-    └── square_three_visual_test.cpp  ... square_nine_visual_test.cpp  # live animated runs
+    ├── test_helpers.h                                                 # shared validate/runCorrectnessTest/runVisualTest
+    ├── square_three_test.cpp  ... square_nine_test.cpp                # correctness tests (1-line stubs)
+    └── square_three_visual_test.cpp  ... square_nine_visual_test.cpp  # live animated runs (1-line stubs)
 ```
 
 ## License

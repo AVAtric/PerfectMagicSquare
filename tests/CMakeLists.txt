@@ -4,8 +4,8 @@
 
 find_package(OpenMP REQUIRED)
 
-# Helper function to create a test target with common configuration
-function(add_square_test TEST_SUFFIX TEST_SOURCE)
+# Helper: build a single test binary and register it with CTest.
+function(add_square_test TEST_SUFFIX TEST_SOURCE TEST_NAME TEST_TIMEOUT)
     set(TARGET_NAME ${MAGIC_SQUARE_PROJECT_NAME}${TEST_SUFFIX})
 
     add_executable(${TARGET_NAME}
@@ -13,64 +13,46 @@ function(add_square_test TEST_SUFFIX TEST_SOURCE)
             ${MAGIC_SQUARE_SRC_DIR}/program_options.cpp
             ${MAGIC_SQUARE_SRC_DIR}/magic_square.cpp)
 
-    target_include_directories(${TARGET_NAME} PUBLIC ${MAGIC_SQUARE_INC_DIR})
+    target_include_directories(${TARGET_NAME} PUBLIC
+            ${MAGIC_SQUARE_INC_DIR}
+            ${MAGIC_SQUARE_TESTS_DIR})
 
     if (OpenMP_CXX_FOUND)
         target_include_directories(${TARGET_NAME} PUBLIC OpenMP::OpenMP_CXX_INCLUDE_DIRS)
         target_link_libraries(${TARGET_NAME} PUBLIC OpenMP::OpenMP_CXX)
     endif ()
+
+    add_test(NAME ${TEST_NAME} COMMAND $<TARGET_FILE:${TARGET_NAME}>)
+    set_tests_properties(${TEST_NAME} PROPERTIES TIMEOUT ${TEST_TIMEOUT})
 endfunction()
 
-# Correctness tests (one per square size)
-add_square_test(TestsThree  ${MAGIC_SQUARE_TESTS_DIR}/square_three_test.cpp)
-add_square_test(TestsFour   ${MAGIC_SQUARE_TESTS_DIR}/square_four_test.cpp)
-add_square_test(TestsFive   ${MAGIC_SQUARE_TESTS_DIR}/square_five_test.cpp)
-add_square_test(TestsSix    ${MAGIC_SQUARE_TESTS_DIR}/square_six_test.cpp)
-add_square_test(TestsSeven  ${MAGIC_SQUARE_TESTS_DIR}/square_seven_test.cpp)
-add_square_test(TestsEight  ${MAGIC_SQUARE_TESTS_DIR}/square_eight_test.cpp)
-add_square_test(TestsNine   ${MAGIC_SQUARE_TESTS_DIR}/square_nine_test.cpp)
+# Per-size test configuration: <Suffix>|<name>|<correctness-timeout>|<visual-timeout>
+set(SQUARE_TESTS
+        "Three|three|60|60"
+        "Four|four|120|120"
+        "Five|five|300|300"
+        "Six|six|600|600"
+        "Seven|seven|600|600"
+        "Eight|eight|600|600"
+        "Nine|nine|600|600"
+)
 
-# Visual tests (verbose output, shows GA evolving for each size)
-add_square_test(TestsThreeVisual  ${MAGIC_SQUARE_TESTS_DIR}/square_three_visual_test.cpp)
-add_square_test(TestsFourVisual   ${MAGIC_SQUARE_TESTS_DIR}/square_four_visual_test.cpp)
-add_square_test(TestsFiveVisual   ${MAGIC_SQUARE_TESTS_DIR}/square_five_visual_test.cpp)
-add_square_test(TestsSixVisual    ${MAGIC_SQUARE_TESTS_DIR}/square_six_visual_test.cpp)
-add_square_test(TestsSevenVisual  ${MAGIC_SQUARE_TESTS_DIR}/square_seven_visual_test.cpp)
-add_square_test(TestsEightVisual  ${MAGIC_SQUARE_TESTS_DIR}/square_eight_visual_test.cpp)
-add_square_test(TestsNineVisual   ${MAGIC_SQUARE_TESTS_DIR}/square_nine_visual_test.cpp)
+foreach (entry IN LISTS SQUARE_TESTS)
+    string(REPLACE "|" ";" parts "${entry}")
+    list(GET parts 0 SUFFIX)
+    list(GET parts 1 NAME)
+    list(GET parts 2 CORRECTNESS_TIMEOUT)
+    list(GET parts 3 VISUAL_TIMEOUT)
 
-# Register CTest tests - correctness
-add_test(NAME square_three_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsThree>)
-add_test(NAME square_four_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsFour>)
-add_test(NAME square_five_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsFive>)
-add_test(NAME square_six_test   COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsSix>)
-add_test(NAME square_seven_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsSeven>)
-add_test(NAME square_eight_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsEight>)
-add_test(NAME square_nine_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsNine>)
+    add_square_test(
+            "Tests${SUFFIX}"
+            "${MAGIC_SQUARE_TESTS_DIR}/square_${NAME}_test.cpp"
+            "square_${NAME}_test"
+            ${CORRECTNESS_TIMEOUT})
 
-# Register CTest tests - visual
-add_test(NAME square_three_visual_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsThreeVisual>)
-add_test(NAME square_four_visual_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsFourVisual>)
-add_test(NAME square_five_visual_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsFiveVisual>)
-add_test(NAME square_six_visual_test   COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsSixVisual>)
-add_test(NAME square_seven_visual_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsSevenVisual>)
-add_test(NAME square_eight_visual_test COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsEightVisual>)
-add_test(NAME square_nine_visual_test  COMMAND $<TARGET_FILE:${MAGIC_SQUARE_PROJECT_NAME}TestsNineVisual>)
-
-# Test timeouts (seconds) - correctness
-set_tests_properties(square_three_test PROPERTIES TIMEOUT 60)
-set_tests_properties(square_four_test  PROPERTIES TIMEOUT 120)
-set_tests_properties(square_five_test  PROPERTIES TIMEOUT 300)
-set_tests_properties(square_six_test   PROPERTIES TIMEOUT 600)
-set_tests_properties(square_seven_test PROPERTIES TIMEOUT 600)
-set_tests_properties(square_eight_test PROPERTIES TIMEOUT 600)
-set_tests_properties(square_nine_test  PROPERTIES TIMEOUT 600)
-
-# Test timeouts (seconds) - visual
-set_tests_properties(square_three_visual_test PROPERTIES TIMEOUT 60)
-set_tests_properties(square_four_visual_test  PROPERTIES TIMEOUT 120)
-set_tests_properties(square_five_visual_test  PROPERTIES TIMEOUT 300)
-set_tests_properties(square_six_visual_test   PROPERTIES TIMEOUT 600)
-set_tests_properties(square_seven_visual_test PROPERTIES TIMEOUT 600)
-set_tests_properties(square_eight_visual_test PROPERTIES TIMEOUT 600)
-set_tests_properties(square_nine_visual_test  PROPERTIES TIMEOUT 600)
+    add_square_test(
+            "Tests${SUFFIX}Visual"
+            "${MAGIC_SQUARE_TESTS_DIR}/square_${NAME}_visual_test.cpp"
+            "square_${NAME}_visual_test"
+            ${VISUAL_TIMEOUT})
+endforeach ()

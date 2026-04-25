@@ -8,21 +8,17 @@
 #include <string>
 #include <vector>
 
-// Calculate the magic sum of a square of given size
+constexpr int MIN_DIMENSION = 3;
+constexpr int MAX_DIMENSION = 9;
+
 constexpr int magic_sum(int n) { return n * (n * n + 1) / 2; }
 
-// Define the mutation rate and the number of changes needed to increase the mutation rate
-const double BASE_MUTATION = 0.1;
-const int BASE_CHANGE_COUNT = 3;
+constexpr double BASE_MUTATION = 0.1;
+constexpr int BASE_CHANGE_COUNT = 3;
 
-/**
- * Base structure of a single magic square.
- * The size is is passed to constructor.
- *
- */
 class MagicSquare {
 public:
-    explicit MagicSquare(int, bool = true);
+    explicit MagicSquare(int size, bool randomize = true);
 
     void randomize();
 
@@ -32,9 +28,9 @@ public:
 
     void localSearch(int rounds);
 
-    void print(const std::string &title = "", bool show_details = true, bool show_fitness = true);
+    void print(const std::string &title = "", bool show_details = true, bool show_fitness = true) const;
 
-    void write(const std::string &);
+    void write(const std::string &path) const;
 
     int fitnessRows(int row_index = -1) const;
 
@@ -50,8 +46,6 @@ public:
 
     [[nodiscard]] auto getValue(int row, int col) const { return this->values[row * dimension + col]; }
 
-    auto &getValues() { return this->values; }
-
     void setValue(int row, int col, int value) { this->values[row * dimension + col] = value; }
 
     MagicSquare &operator=(const MagicSquare &);
@@ -61,12 +55,12 @@ public:
     friend bool operator!=(const MagicSquare &, const MagicSquare &);
 
 private:
-    std::vector<int> values;    // flat row-major array (was vector<vector<int>>)
+    std::vector<int> values;        // flat row-major storage
     int dimension;
     int fitness;
     int sum;
 
-    // Cached sums for O(1) fitness queries and incremental swap updates
+    // Cached sums for O(1) fitness queries and incremental swap updates.
     std::vector<int> row_sums;
     std::vector<int> col_sums;
     int diag1_sum;

@@ -1,22 +1,32 @@
-# Project exclude paths
-/cmake-build-debug/
-/cmake-build-debug-wsl/
+# macOS
+.DS_Store
+
+# IDE / tool metadata
 .idea
 .claude
-/build
-/bin
-/CMakeFiles
-/src/CMakeFiles
+
+# CMake build directories
+/build/
+/cmake-build-debug/
+/cmake-build-debug-wsl/
+/cmake-build-release/
+
+# CMake intermediates (in case build is run in-tree)
+/bin/
+/CMakeFiles/
+/src/CMakeFiles/
 /src/cmake_install.cmake
 /src/CTestTestfile.cmake
 /src/Makefile
-/tests/CMakeFiles
+/tests/CMakeFiles/
+/tests/cmake_install.cmake
 /tests/CTestTestfile.cmake
 /tests/Makefile
-/tests/cmake_install.cmake
 cmake_install.cmake
 CMakeCache.txt
 CTestTestfile.cmake
 Makefile
+
+# Generated artifacts
 README.pdf
 result*.csv
